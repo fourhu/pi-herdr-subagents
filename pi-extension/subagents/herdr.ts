@@ -114,7 +114,24 @@ function getHerdrCurrentPaneInfo(): {
   return { pane_id: paneId, tab_id: tabId, workspace_id: workspaceId };
 }
 
-function buildTabCreateArgs(name: string, cwd: string, workspaceId: string): string[] {
+/**
+ * Whether a new subagent surface should take the foreground.
+ * Unset focuses the pane so the user can watch the subagent. `0`, `false`,
+ * `no`, and `off` keep the current pane focused.
+ */
+export function resolveSubagentFocus(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const raw = (env.PI_SUBAGENT_FOCUS ?? "").trim().toLowerCase();
+  return raw !== "0" && raw !== "false" && raw !== "no" && raw !== "off";
+}
+
+function buildTabCreateArgs(
+  name: string,
+  cwd: string,
+  workspaceId: string,
+  focus = true,
+): string[] {
   return [
     "tab",
     "create",
@@ -124,7 +141,7 @@ function buildTabCreateArgs(name: string, cwd: string, workspaceId: string): str
     name,
     "--cwd",
     cwd,
-    "--no-focus",
+    focus ? "--focus" : "--no-focus",
   ];
 }
 
@@ -132,8 +149,11 @@ export function createHerdrSurface(name: string): string {
   // Create a new tab per subagent so parallel spawns each get a full tab
   // instead of ever-narrower splits of the parent pane. Target the current
   // workspace explicitly because Herdr's implicit default may be another space.
+  // Focus it so the subagent's terminal is the one on screen.
   const { workspace_id: workspaceId } = getHerdrCurrentPaneInfo();
-  const output = herdrExec(buildTabCreateArgs(name, process.cwd(), workspaceId));
+  const output = herdrExec(
+    buildTabCreateArgs(name, process.cwd(), workspaceId, resolveSubagentFocus()),
+  );
   const paneId = extractHerdrRootPaneId(output, "tab create");
   try {
     herdrExec(["pane", "rename", paneId, name]);
@@ -147,6 +167,7 @@ function buildPaneSplitArgs(
   parentPaneId: string,
   direction: "right" | "down",
   cwd: string,
+  focus = true,
 ): string[] {
   return [
     "pane",
@@ -154,7 +175,7 @@ function buildPaneSplitArgs(
     parentPaneId,
     "--direction",
     direction,
-    "--no-focus",
+    focus ? "--focus" : "--no-focus",
     "--cwd",
     cwd,
   ];
@@ -165,7 +186,9 @@ export function createHerdrSurfaceSplit(
   direction: "right" | "down",
 ): string {
   const parentPaneId = getHerdrParentPaneId();
-  const output = herdrExec(buildPaneSplitArgs(parentPaneId, direction, process.cwd()));
+  const output = herdrExec(
+    buildPaneSplitArgs(parentPaneId, direction, process.cwd(), resolveSubagentFocus()),
+  );
   const paneId = extractHerdrPaneId(output, "pane split");
   try {
     herdrExec(["pane", "rename", paneId, name]);
@@ -320,6 +343,7 @@ export function reportHerdrPaneTask(
 export const __herdrTest__ = {
   buildTabCreateArgs,
   buildPaneSplitArgs,
+  resolveSubagentFocus,
   buildPaneReportTaskArgs,
   parseHerdrJson,
   extractHerdrPaneId,

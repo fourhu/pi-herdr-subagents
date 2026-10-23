@@ -138,6 +138,8 @@ export interface TestEnv {
   workspaceId: string;
   /** Parent workspace restored after cleanup. */
   previousWorkspaceId: string | undefined;
+  /** `PI_SUBAGENT_FOCUS` restored after cleanup. */
+  previousSubagentFocus: string | undefined;
   /** Surfaces created directly by the harness. */
   surfaces: string[];
   /** Temp files to clean up */
@@ -167,10 +169,13 @@ export function createTestEnv(backend: MuxBackend): TestEnv {
   const agentsDir = join(dir, ".pi", "agents");
   const previousWorkspaceId = process.env.HERDR_WORKSPACE_ID;
   if (!previousWorkspaceId) throw new Error("HERDR_WORKSPACE_ID is required for integration tests");
+  const previousSubagentFocus = process.env.PI_SUBAGENT_FOCUS;
   const workspaceId = createTestWorkspace(dir);
   // Herdr creates subagent tabs in the workspace identified by this env var.
   // Point the harness at its dedicated workspace without changing the parent's pane.
+  // Interactive runs focus the new pane; tests keep the caller's view still.
   process.env.HERDR_WORKSPACE_ID = workspaceId;
+  process.env.PI_SUBAGENT_FOCUS = "0";
   mkdirSync(agentsDir, { recursive: true });
 
   // Copy test agent definitions into the project-local agents dir and pin
@@ -188,7 +193,15 @@ export function createTestEnv(backend: MuxBackend): TestEnv {
     }
   }
 
-  return { dir, backend, workspaceId, previousWorkspaceId, surfaces: [], tempFiles: [] };
+  return {
+    dir,
+    backend,
+    workspaceId,
+    previousWorkspaceId,
+    previousSubagentFocus,
+    surfaces: [],
+    tempFiles: [],
+  };
 }
 
 /**
@@ -209,6 +222,11 @@ export function cleanupTestEnv(env: TestEnv): void {
     process.env.HERDR_WORKSPACE_ID = env.previousWorkspaceId;
   } else {
     delete process.env.HERDR_WORKSPACE_ID;
+  }
+  if (env.previousSubagentFocus === undefined) {
+    delete process.env.PI_SUBAGENT_FOCUS;
+  } else {
+    process.env.PI_SUBAGENT_FOCUS = env.previousSubagentFocus;
   }
   for (const file of env.tempFiles) {
     try {
@@ -260,6 +278,7 @@ export function startPi(
   // against whatever version is checked out under `~/.pi/agent/git/...`.
   const cmd = [
     `cd ${shellQuote(testDir)} &&`,
+    `PI_SUBAGENT_FOCUS=0`,
     `pi`,
     `-ne`,
     `-e ${shellQuote(EXTENSION_SOURCE)}`,

@@ -48,6 +48,31 @@ Install the package from npm:
 pi install npm:pi-herdr-subagents
 ```
 
+### Use this fork with Pi 1.4
+
+To use your local checkout, replace the npm installation with the local package:
+
+```bash
+pi remove npm:pi-herdr-subagents
+cd /path/to/pi-herdr-subagents
+npm ci
+pi install "$PWD"
+```
+
+Restart Pi after switching sources. Local installs load directly from the checkout, so no build or npm publication is needed. Keep the checkout at the installed path. This repository's `.pi/settings.json` already loads the same entrypoint for development; Pi deduplicates that exact path.
+
+Alternatively, after committing and pushing your changes to the fork, install from Git:
+
+```bash
+pi install git:github.com/fourhu/pi-herdr-subagents
+```
+
+Choose either the local or Git installation. Do not keep the upstream npm package enabled alongside the fork: they register the same tools, and Pi exits with `Tool "subagent" conflicts with ...`. Check `pi list` for old installations and remove their exact source with `pi remove <source>`.
+
+If a child stops at `Trust project folder?`, review the project resources and use `/trust` in Pi to save your decision for that project. A parent launched with `--approve` only trusts it for that process; the flag does not approve child processes. The extension does not automatically bypass project trust.
+
+Pi supplies the `typebox` 1.x runtime used by the extension. The development dependencies and file-loader compatibility tests target Pi 1.4.x.
+
 This project does not install or load `HazAT/pi-interactive-subagents` automatically.
 
 Changing the `package.json` version on `main` automatically creates a matching Git tag and GitHub Release, generates release notes, and publishes the package to npm. For authentication, versioning, verification, and troubleshooting, see [RELEASING.md](RELEASING.md).
@@ -77,7 +102,7 @@ export PI_SUBAGENT_LAYOUT=split        # right-hand split
 # export PI_SUBAGENT_LAYOUT=split:down # split below
 ```
 
-Subagent tabs and panes are created without stealing keyboard focus. Launch commands target child panes by explicit ID, so focus and command delivery are independent. Note: the `interactive` option controls parent status notifications, not terminal focus.
+A new subagent tab or split is focused, so its terminal is what you see. Later spawns move the view to the newest pane; earlier ones stay in the tab bar. Set `PI_SUBAGENT_FOCUS=0` to leave the current pane focused. Commands still target the child pane by id, so delivery does not depend on focus. The `interactive` option controls parent status notifications, not terminal focus.
 
 ## What's Included
 
@@ -542,7 +567,7 @@ Every sub-agent session displays a compact tools widget showing available and de
 
 ## Requirements
 
-- [pi](https://github.com/earendil-works/pi) 1.3.x, minimum 1.3.0. The extension is tested on this line only.
+- [pi](https://github.com/earendil-works/pi) 1.4.x, minimum 1.4.0. The extension is tested on this line only.
 - [herdr](https://herdr.dev) — the required terminal workspace
 
 ```bash

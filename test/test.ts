@@ -3068,8 +3068,22 @@ describe("herdr.ts", () => {
   });
 
   describe("herdr command construction", () => {
-    it("targets the current workspace when creating a subagent tab", () => {
+    it("targets the current workspace and focuses a subagent tab", () => {
       assert.deepEqual(__herdrTest__.buildTabCreateArgs("reviewer", "/repo", "workspace-2"), [
+        "tab",
+        "create",
+        "--workspace",
+        "workspace-2",
+        "--label",
+        "reviewer",
+        "--cwd",
+        "/repo",
+        "--focus",
+      ]);
+    });
+
+    it("keeps the current pane focused when focus is disabled", () => {
+      assert.deepEqual(__herdrTest__.buildTabCreateArgs("reviewer", "/repo", "workspace-2", false), [
         "tab",
         "create",
         "--workspace",
@@ -3080,6 +3094,15 @@ describe("herdr.ts", () => {
         "/repo",
         "--no-focus",
       ]);
+    });
+
+    it("focuses a subagent unless PI_SUBAGENT_FOCUS turns it off", () => {
+      assert.equal(__herdrTest__.resolveSubagentFocus({}), true);
+      assert.equal(__herdrTest__.resolveSubagentFocus({ PI_SUBAGENT_FOCUS: "" }), true);
+      assert.equal(__herdrTest__.resolveSubagentFocus({ PI_SUBAGENT_FOCUS: "1" }), true);
+      assert.equal(__herdrTest__.resolveSubagentFocus({ PI_SUBAGENT_FOCUS: "0" }), false);
+      assert.equal(__herdrTest__.resolveSubagentFocus({ PI_SUBAGENT_FOCUS: "false" }), false);
+      assert.equal(__herdrTest__.resolveSubagentFocus({ PI_SUBAGENT_FOCUS: "off" }), false);
     });
 
     it("constructs report-metadata arguments with normalized task token", () => {
@@ -3215,21 +3238,34 @@ describe("herdr.ts", () => {
 
 describe("subagent surface layout", () => {
   describe("buildPaneSplitArgs", () => {
-    it("constructs a right-hand split against the parent pane", () => {
+    it("constructs a right-hand split against the parent pane and focuses it", () => {
       assert.deepEqual(__herdrTest__.buildPaneSplitArgs("w1:p1", "right", "/repo"), [
         "pane",
         "split",
         "w1:p1",
         "--direction",
         "right",
-        "--no-focus",
+        "--focus",
         "--cwd",
         "/repo",
       ]);
     });
 
-    it("constructs a downward split against the parent pane", () => {
+    it("constructs a downward split against the parent pane and focuses it", () => {
       assert.deepEqual(__herdrTest__.buildPaneSplitArgs("w1:p1", "down", "/repo"), [
+        "pane",
+        "split",
+        "w1:p1",
+        "--direction",
+        "down",
+        "--focus",
+        "--cwd",
+        "/repo",
+      ]);
+    });
+
+    it("can split without taking focus", () => {
+      assert.deepEqual(__herdrTest__.buildPaneSplitArgs("w1:p1", "down", "/repo", false), [
         "pane",
         "split",
         "w1:p1",
